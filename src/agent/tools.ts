@@ -5,6 +5,8 @@
  * Tools are organized by category and exposed to the inference model.
  */
 
+import fs from "node:fs";
+import path from "node:path";
 import nodePath from "node:path";
 import { ulid } from "ulid";
 import type {
