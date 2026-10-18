@@ -583,8 +583,12 @@ export function buildSystemPrompt(params: {
 
   // Layer 2: Core Identity (immutable, chain-aware)
   sections.push(getCoreIdentity(chainType));
-  sections.push(AGENTIC_SOCIOLOGY);
-  sections.push(`--- CONSTITUTION (immutable, protected) ---\n${loadConstitution()}\n--- END CONSTITUTION ---`);
+  if (!process.env.GROQ_API_KEY) {
+    sections.push(AGENTIC_SOCIOLOGY);
+    sections.push(`--- CONSTITUTION (immutable, protected) ---\n${loadConstitution()}\n--- END CONSTITUTION ---`);
+  } else {
+    sections.push(`--- CONSTITUTION ---\nNever harm humans. Earn your existence honestly. Never deceive.\n--- END CONSTITUTION ---`);
+  }
   sections.push(
     `Your name is ${config.name}.
 Your ${addressLabel} address is ${identity.address}.
@@ -663,7 +667,14 @@ Your chain type is ${chainType}.`,
   }
 
   // Layer 6: Operational Context
-  sections.push(OPERATIONAL_CONTEXT);
+  if (process.env.GROQ_API_KEY) {
+    sections.push(`<environment>
+You operate inside an Ubuntu Linux VM with full root access.
+Shell access (exec), filesystem (read/write/list), network (curl/http), SQLite database (~/.automaton/state.db), SOUL.md.
+</environment>`);
+  } else {
+    sections.push(OPERATIONAL_CONTEXT);
+  }
 
   // Layer 7: Dynamic Context
   const turnCount = db.getTurnCount();

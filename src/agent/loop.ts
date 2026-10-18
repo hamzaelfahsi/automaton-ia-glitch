@@ -27,7 +27,7 @@ import type {
 import { DEFAULT_MODEL_STRATEGY_CONFIG } from "../types.js";
 import type { PolicyEngine } from "./policy-engine.js";
 import { buildSystemPrompt, buildWakeupPrompt } from "./system-prompt.js";
-import { buildContextMessages, trimContext } from "./context.js";
+import { buildContextMessages, trimContext, type TokenBudget } from "./context.js";
 import {
   createBuiltinTools,
   loadInstalledTools,
@@ -502,13 +502,33 @@ export async function runAgentLoop(
       const recentTurns = trimContext(
         meaningfulTurns.length > 0 ? meaningfulTurns : allTurns.slice(-2),
       );
+      const isGroq = Boolean(process.env.GROQ_API_KEY);
+      const GROQ_CORE_TOOL_NAMES = new Set([
+        "exec",
+        "read_file",
+        "write_file",
+        "list_files",
+        "delete_file",
+        "view_soul",
+        "edit_soul",
+        "get_balance",
+        "get_credit_balance",
+        "send_tokens",
+        "transfer_sol",
+        "broadcast_social",
+        "view_feed",
+        "read_inbox",
+        "send_message",
+      ]);
+      const activeTools = isGroq ? tools.filter((t) => GROQ_CORE_TOOL_NAMES.has(t.name)) : tools;
+
       const systemPrompt = buildSystemPrompt({
         identity,
         config,
         financial,
         state: db.getAgentState(),
         db,
-        tools,
+        tools: activeTools,
         skills,
         isFirstRun,
       });
@@ -527,10 +547,19 @@ export async function runAgentLoop(
         // Memory failure must not block the agent loop
       }
 
+      const groqBudget: TokenBudget = {
+        total: 5000,
+        systemPrompt: 2000,
+        recentTurns: 1500,
+        toolResults: 800,
+        memoryRetrieval: 400,
+      };
+
       let messages = buildContextMessages(
         systemPrompt,
-        recentTurns,
+        isGroq ? recentTurns.slice(-2) : recentTurns,
         pendingInput,
+        isGroq ? { budget: groqBudget } : undefined,
       );
 
       // Inject memory block after system prompt, before conversation history
@@ -600,7 +629,7 @@ export async function runAgentLoop(
       const survivalTier = financial.creditsCents === -1 ? "normal" : getSurvivalTier(financial.creditsCents);
       log(config, `[THINK] Routing inference (tier: ${survivalTier}, model: ${inference.getDefaultModel()})...`);
 
-      const inferenceTools = toolsToInferenceFormat(tools);
+      const inferenceTools = toolsToInferenceFormat(activeTools);
       const routerResult = await inferenceRouter.route(
         {
           messages: messages,
