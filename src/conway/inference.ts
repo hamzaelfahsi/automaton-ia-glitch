@@ -31,7 +31,7 @@ interface InferenceClientOptions {
   getModelProvider?: (modelId: string) => string | undefined;
 }
 
-type InferenceBackend = "conway" | "openai" | "anthropic" | "ollama";
+type InferenceBackend = "conway" | "openai" | "anthropic" | "ollama" | "gemini";
 
 function isLoopbackHttpUrl(url: string | undefined): boolean {
   if (!url) return false;
@@ -110,17 +110,20 @@ export function createInferenceClient(
       });
     }
 
+    const isGemini = backend === "gemini";
     const openAiLikeApiUrl =
-      backend === "openai" ? "https://api.openai.com" :
+      backend === "gemini" ? "https://generativelanguage.googleapis.com/v1beta/openai" :
+      backend === "openai" ? (process.env.OPENAI_BASE_URL || "https://api.openai.com") :
       backend === "ollama" ? (ollamaBaseUrl as string).replace(/\/$/, "") :
       apiUrl;
     const openAiLikeApiKey =
+      backend === "gemini" ? (process.env.GEMINI_API_KEY || (openaiApiKey as string)) :
       backend === "openai" ? (openaiApiKey as string) :
       backend === "ollama" ? "ollama" :
       apiKey;
 
     return chatViaOpenAiCompatible({
-      model,
+      model: isGemini && !model.startsWith("gemini") ? "gemini-2.5-flash" : model,
       body,
       apiUrl: openAiLikeApiUrl,
       apiKey: openAiLikeApiKey,
@@ -186,11 +189,19 @@ function resolveInferenceBackend(
   // Registry-based routing: most accurate, no name guessing
   if (keys.getModelProvider) {
     const provider = keys.getModelProvider(model);
+    if (provider === "gemini") return "gemini";
     if (provider === "ollama" && keys.ollamaBaseUrl) return "ollama";
     if (provider === "anthropic" && keys.anthropicApiKey) return "anthropic";
     if (provider === "openai" && keys.openaiApiKey) return "openai";
     if (provider === "conway") return "conway";
     // provider unknown or key not configured — fall through to heuristics
+  }
+
+  // Gemini detection
+  if (/^gemini/i.test(model)) return "gemini";
+  if (process.env.GEMINI_API_KEY) return "gemini";
+  if (keys.openaiApiKey && (keys.openaiApiKey.startsWith("AIzaSy") || keys.openaiApiKey.startsWith("AQ."))) {
+    return "gemini";
   }
 
   // Heuristic fallback (model not in registry yet)
@@ -205,19 +216,26 @@ async function chatViaOpenAiCompatible(params: {
   body: Record<string, unknown>;
   apiUrl: string;
   apiKey: string;
-  backend: "conway" | "openai" | "ollama";
+  backend: "conway" | "openai" | "ollama" | "gemini";
   httpClient: ResilientHttpClient;
 }): Promise<InferenceResponse> {
-  const resp = await params.httpClient.request(`${params.apiUrl}/v1/chat/completions`, {
+  const url = params.apiUrl.replace(/\/$/, "");
+  const endpoint = url.endsWith("/chat/completions")
+    ? url
+    : url.endsWith("/openai")
+      ? `${url}/chat/completions`
+      : `${url}/v1/chat/completions`;
+
+  const resp = await params.httpClient.request(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization:
-        params.backend === "openai" || params.backend === "ollama"
+        params.backend === "openai" || params.backend === "ollama" || params.backend === "gemini"
           ? `Bearer ${params.apiKey}`
           : params.apiKey,
     },
-    body: JSON.stringify(params.body),
+    body: JSON.stringify({ ...params.body, model: params.model }),
     timeout: INFERENCE_TIMEOUT_MS,
   });
 

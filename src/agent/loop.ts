@@ -596,7 +596,7 @@ export async function runAgentLoop(
       pendingInput = undefined;
 
       // ── Inference Call (via router when available) ──
-      const survivalTier = getSurvivalTier(financial.creditsCents);
+      const survivalTier = financial.creditsCents === -1 ? "normal" : getSurvivalTier(financial.creditsCents);
       log(config, `[THINK] Routing inference (tier: ${survivalTier}, model: ${inference.getDefaultModel()})...`);
 
       const inferenceTools = toolsToInferenceFormat(tools);
@@ -973,6 +973,18 @@ async function getFinancialState(
           logger.error("Failed to parse cached balance", parseError instanceof Error ? parseError : undefined);
         }
       }
+    }
+    // If no cache, but Bring-Your-Own-Key (BYOK) is active (e.g. Gemini / OpenAI), treat as funded
+    const hasByok = Boolean(process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY);
+    if (hasByok) {
+      if (db) {
+        db.setKV("last_known_balance", JSON.stringify({ creditsCents: 10000, usdcBalance: 0 }));
+      }
+      return {
+        creditsCents: 10000,
+        usdcBalance: 0,
+        lastChecked: new Date().toISOString(),
+      };
     }
     // No cache available -- return conservative non-zero sentinel
     logger.error("Balance API failed, no cache available");
