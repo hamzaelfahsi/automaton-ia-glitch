@@ -237,18 +237,18 @@ export const STATIC_MODEL_BASELINE: Omit<ModelEntry, "lastSeen" | "createdAt" | 
 
 export const DEFAULT_ROUTING_MATRIX: RoutingMatrix = {
   high: {
-    agent_turn: { candidates: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-20b"], maxTokens: 8192, ceilingCents: -1 },
-    heartbeat_triage: { candidates: ["openai/gpt-oss-20b", "llama-3.1-8b-instant"], maxTokens: 2048, ceilingCents: 5 },
-    safety_check: { candidates: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"], maxTokens: 4096, ceilingCents: 20 },
-    summarization: { candidates: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"], maxTokens: 4096, ceilingCents: 15 },
-    planning: { candidates: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"], maxTokens: 8192, ceilingCents: -1 },
+    agent_turn: { candidates: ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant", "openai/gpt-oss-20b"], maxTokens: 8192, ceilingCents: -1 },
+    heartbeat_triage: { candidates: ["llama-3.1-8b-instant", "openai/gpt-oss-20b"], maxTokens: 2048, ceilingCents: 5 },
+    safety_check: { candidates: ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"], maxTokens: 4096, ceilingCents: 20 },
+    summarization: { candidates: ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"], maxTokens: 4096, ceilingCents: 15 },
+    planning: { candidates: ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"], maxTokens: 8192, ceilingCents: -1 },
   },
   normal: {
-    agent_turn: { candidates: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-20b"], maxTokens: 4096, ceilingCents: -1 },
-    heartbeat_triage: { candidates: ["openai/gpt-oss-20b", "llama-3.1-8b-instant"], maxTokens: 2048, ceilingCents: 5 },
-    safety_check: { candidates: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"], maxTokens: 4096, ceilingCents: 10 },
-    summarization: { candidates: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"], maxTokens: 4096, ceilingCents: 10 },
-    planning: { candidates: ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "llama-3.1-8b-instant"], maxTokens: 4096, ceilingCents: -1 },
+    agent_turn: { candidates: ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant", "openai/gpt-oss-20b"], maxTokens: 4096, ceilingCents: -1 },
+    heartbeat_triage: { candidates: ["llama-3.1-8b-instant", "openai/gpt-oss-20b"], maxTokens: 2048, ceilingCents: 5 },
+    safety_check: { candidates: ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"], maxTokens: 4096, ceilingCents: 10 },
+    summarization: { candidates: ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"], maxTokens: 4096, ceilingCents: 10 },
+    planning: { candidates: ["llama-3.3-70b-versatile", "openai/gpt-oss-120b", "llama-3.1-8b-instant"], maxTokens: 4096, ceilingCents: -1 },
   },
   low_compute: {
     agent_turn: { candidates: ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "openai/gpt-oss-20b", "openai/gpt-oss-120b"], maxTokens: 4096, ceilingCents: 10 },
@@ -276,7 +276,7 @@ export const DEFAULT_ROUTING_MATRIX: RoutingMatrix = {
 // === Default Model Strategy Config ===
 
 export const DEFAULT_MODEL_STRATEGY_CONFIG: ModelStrategyConfig = {
-  inferenceModel: "openai/gpt-oss-120b",
+  inferenceModel: "llama-3.3-70b-versatile",
   lowComputeModel: "llama-3.1-8b-instant",
   criticalModel: "llama-3.1-8b-instant",
   maxTokensPerTurn: 4096,

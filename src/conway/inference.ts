@@ -130,14 +130,22 @@ export function createInferenceClient(
 
     let targetModel = model;
     if (isGroq) {
-      if (model.includes("120b")) {
+      if (
+        model.startsWith("llama") ||
+        model.startsWith("mixtral") ||
+        model.startsWith("gemma") ||
+        model.startsWith("openai/") ||
+        model.startsWith("qwen")
+      ) {
+        targetModel = model;
+      } else if (model.includes("8b") || model.includes("small") || model.includes("instant")) {
+        targetModel = "llama-3.1-8b-instant";
+      } else if (model.includes("120b")) {
         targetModel = "openai/gpt-oss-120b";
-      } else if (model.includes("20b") || model.includes("8b") || model === "llama-3.1-8b-instant") {
+      } else if (model.includes("20b")) {
         targetModel = "openai/gpt-oss-20b";
-      } else if (model.includes("qwen")) {
-        targetModel = "qwen/qwen3.8-27b";
       } else {
-        targetModel = "openai/gpt-oss-120b";
+        targetModel = "llama-3.3-70b-versatile";
       }
     } else if (isGemini) {
       if (!model.startsWith("gemini") || model === "gemini-2.5-flash") {
@@ -283,25 +291,32 @@ async function chatViaOpenAiCompatible(params: {
     timeout: INFERENCE_TIMEOUT_MS,
   });
 
-  if ((resp.status === 429 || resp.status === 413) && (params.backend === "gemini" || params.backend === "groq")) {
-    // Free tier rate limit (tokens per minute or requests per minute) - wait 45s and retry once
-    await new Promise((resolve) => setTimeout(resolve, 45_000));
-    resp = await params.httpClient.request(endpoint, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${params.apiKey}`,
-      },
-      body: JSON.stringify({ ...params.body, model: params.model }),
-      timeout: INFERENCE_TIMEOUT_MS,
-    });
-  }
-
   if (!resp.ok) {
     const text = await resp.text();
-    throw new Error(
-      `Inference error (${params.backend}): ${resp.status}: ${text}`,
-    );
+    const isDailyLimit = text.includes("tokens per day") || text.includes("TPD");
+    if ((resp.status === 429 || resp.status === 413) && !isDailyLimit && (params.backend === "gemini" || params.backend === "groq")) {
+      // Free tier rate limit (tokens per minute or requests per minute) - wait 45s and retry once
+      await new Promise((resolve) => setTimeout(resolve, 45_000));
+      resp = await params.httpClient.request(endpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${params.apiKey}`,
+        },
+        body: JSON.stringify({ ...params.body, model: params.model }),
+        timeout: INFERENCE_TIMEOUT_MS,
+      });
+      if (!resp.ok) {
+        const retryText = await resp.text();
+        throw new Error(
+          `Inference error (${params.backend}): ${resp.status}: ${retryText}`,
+        );
+      }
+    } else {
+      throw new Error(
+        `Inference error (${params.backend}): ${resp.status}: ${text}`,
+      );
+    }
   }
 
   const data = await resp.json() as any;
