@@ -113,8 +113,8 @@ export function createInferenceClient(
     const isGroq = backend === "groq";
     const isGemini = backend === "gemini";
     const openAiLikeApiUrl =
-      backend === "groq" ? "https://api.groq.com/openai" :
-      backend === "gemini" ? "https://generativelanguage.googleapis.com/v1beta/openai" :
+      backend === "groq" ? "https://api.groq.com/openai/v1/chat/completions" :
+      backend === "gemini" ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions" :
       backend === "openai" ? (process.env.OPENAI_BASE_URL || "https://api.openai.com") :
       backend === "ollama" ? (ollamaBaseUrl as string).replace(/\/$/, "") :
       apiUrl;
@@ -251,7 +251,7 @@ async function chatViaOpenAiCompatible(params: {
   const url = params.apiUrl.replace(/\/$/, "");
   const endpoint = url.endsWith("/chat/completions")
     ? url
-    : url.endsWith("/openai")
+    : url.endsWith("/v1")
       ? `${url}/chat/completions`
       : `${url}/v1/chat/completions`;
 
