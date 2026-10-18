@@ -898,7 +898,8 @@ export async function runAgentLoop(
 
       // Provider rate-limiting pacing (e.g. Google Gemini free tier allows 5-15 requests per minute)
       const isGeminiKey = Boolean(process.env.GEMINI_API_KEY || config.openaiApiKey?.startsWith("AQ.") || config.openaiApiKey?.startsWith("AIzaSy"));
-      const turnDelayMs = isGeminiKey ? 10_000 : 1_000;
+      const isGroqKey = Boolean(process.env.GROQ_API_KEY);
+      const turnDelayMs = isGeminiKey ? 10_000 : (isGroqKey ? 2_000 : 1_000);
       await sleep(turnDelayMs);
 
       consecutiveErrors = 0;
@@ -988,8 +989,8 @@ async function getFinancialState(
         }
       }
     }
-    // If no cache, but Bring-Your-Own-Key (BYOK) is active (e.g. Gemini / OpenAI), treat as funded
-    const hasByok = Boolean(process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY);
+    // If no cache, but Bring-Your-Own-Key (BYOK) is active (e.g. Groq / Gemini / OpenAI), treat as funded
+    const hasByok = Boolean(process.env.OPENAI_API_KEY || process.env.GEMINI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.GROQ_API_KEY);
     if (hasByok) {
       if (db) {
         db.setKV("last_known_balance", JSON.stringify({ creditsCents: 10000, usdcBalance: 0 }));
