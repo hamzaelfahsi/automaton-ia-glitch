@@ -131,19 +131,15 @@ export function createInferenceClient(
     let targetModel = model;
     if (isGroq) {
       if (
-        model.startsWith("llama") ||
-        model.startsWith("mixtral") ||
-        model.startsWith("gemma") ||
-        model.startsWith("openai/") ||
-        model.startsWith("qwen")
+        model === "openai/gpt-oss-120b" ||
+        model === "openai/gpt-oss-20b" ||
+        model === "qwen/qwen3.8-27b"
       ) {
         targetModel = model;
-      } else if (model.includes("8b") || model.includes("small") || model.includes("instant")) {
-        targetModel = "llama-3.1-8b-instant";
-      } else if (model.includes("120b")) {
-        targetModel = "openai/gpt-oss-120b";
-      } else if (model.includes("20b")) {
+      } else if (model.includes("20b") || model.includes("small") || model.includes("instant") || model.includes("mini") || model.includes("8b")) {
         targetModel = "openai/gpt-oss-20b";
+      } else if (model.includes("qwen")) {
+        targetModel = "qwen/qwen3.8-27b";
       } else {
         targetModel = "openai/gpt-oss-120b";
       }
