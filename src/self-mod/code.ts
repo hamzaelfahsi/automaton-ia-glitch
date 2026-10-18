@@ -157,9 +157,19 @@ function resolveAndValidatePath(filePath: string): string | null {
  */
 export function isProtectedFile(filePath: string): boolean {
   const resolved = path.resolve(filePath);
+  const cwd = path.resolve(process.cwd());
+  const automatonHome = path.resolve(process.env.HOME || "/root", ".automaton");
 
   // Check against protected file patterns using path-segment matching
   for (const pattern of PROTECTED_FILES) {
+    // Only protect package.json / automaton.json / SOUL.md in the automaton's own repo root or .automaton dir
+    if (pattern === "package.json" || pattern === "automaton.json" || pattern === "SOUL.md") {
+      const repoFile = path.join(cwd, pattern);
+      const homeFile = path.join(automatonHome, pattern);
+      if (resolved === repoFile || resolved === homeFile) return true;
+      continue;
+    }
+
     const patternResolved = path.resolve(pattern);
     // Exact match on resolved paths
     if (resolved === patternResolved) return true;
