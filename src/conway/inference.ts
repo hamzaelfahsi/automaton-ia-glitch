@@ -222,7 +222,13 @@ function resolveInferenceBackend(
     }
     if (provider === "ollama" && keys.ollamaBaseUrl) return "ollama";
     if (provider === "anthropic" && keys.anthropicApiKey) return "anthropic";
-    if (provider === "openai" && keys.openaiApiKey) return "openai";
+    if (provider === "openai" && keys.openaiApiKey) {
+      if (keys.openaiApiKey.startsWith("AIzaSy") || keys.openaiApiKey.startsWith("AQ.")) {
+        if (process.env.GROQ_API_KEY) return "groq";
+        return "gemini";
+      }
+      return "openai";
+    }
     if (provider === "conway") {
       if (process.env.GROQ_API_KEY) return "groq";
       return "conway";

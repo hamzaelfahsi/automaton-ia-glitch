@@ -50,9 +50,36 @@ export class InferenceRouter {
     this.coolingDownModels.set(modelId, Date.now() + durationMs);
   }
 
+  private isProviderConfigured(provider: ModelProvider): boolean {
+    if (provider === "groq") {
+      return Boolean(process.env.GROQ_API_KEY);
+    }
+    if (provider === "gemini") {
+      return Boolean(
+        process.env.GEMINI_API_KEY ||
+        process.env.OPENAI_API_KEY?.startsWith("AIzaSy") ||
+        process.env.OPENAI_API_KEY?.startsWith("AQ.")
+      );
+    }
+    if (provider === "openai") {
+      const key = process.env.OPENAI_API_KEY;
+      return Boolean(key && !key.startsWith("AIzaSy") && !key.startsWith("AQ."));
+    }
+    if (provider === "anthropic") {
+      return Boolean(process.env.ANTHROPIC_API_KEY);
+    }
+    if (provider === "ollama") {
+      return Boolean(process.env.OLLAMA_BASE_URL);
+    }
+    if (provider === "conway") {
+      return true;
+    }
+    return true;
+  }
+
   /**
    * Get all eligible candidate models for tier and task type,
-   * filtering out models currently on rate-limit cooldown.
+   * filtering out models currently on rate-limit cooldown or without credentials.
    */
   getCandidates(tier: SurvivalTier, taskType: InferenceTaskType): ModelEntry[] {
     const candidates: ModelEntry[] = [];
@@ -60,7 +87,7 @@ export class InferenceRouter {
     if (preference && preference.candidates.length > 0) {
       for (const candidateId of preference.candidates) {
         const entry = this.registry.get(candidateId);
-        if (entry && entry.enabled && !this.isModelCoolingDown(entry.modelId)) {
+        if (entry && entry.enabled && this.isProviderConfigured(entry.provider) && !this.isModelCoolingDown(entry.modelId)) {
           candidates.push(entry);
         }
       }
@@ -75,7 +102,7 @@ export class InferenceRouter {
     for (const modelId of fallbackIds) {
       if (!modelId) continue;
       const entry = this.registry.get(modelId);
-      if (entry && entry.enabled && !candidates.some((c) => c.modelId === entry.modelId) && !this.isModelCoolingDown(entry.modelId)) {
+      if (entry && entry.enabled && this.isProviderConfigured(entry.provider) && !candidates.some((c) => c.modelId === entry.modelId) && !this.isModelCoolingDown(entry.modelId)) {
         candidates.push(entry);
       }
     }
