@@ -244,11 +244,11 @@ export const DEFAULT_ROUTING_MATRIX: RoutingMatrix = {
     planning: { candidates: ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"], maxTokens: 8192, ceilingCents: -1 },
   },
   normal: {
-    agent_turn: { candidates: ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"], maxTokens: 4096, ceilingCents: -1 },
-    heartbeat_triage: { candidates: ["openai/gpt-oss-20b", "qwen/qwen3.8-27b"], maxTokens: 2048, ceilingCents: 5 },
-    safety_check: { candidates: ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"], maxTokens: 4096, ceilingCents: 10 },
-    summarization: { candidates: ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"], maxTokens: 4096, ceilingCents: 10 },
-    planning: { candidates: ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"], maxTokens: 4096, ceilingCents: -1 },
+    agent_turn: { candidates: ["openai/gpt-oss-20b", "qwen/qwen3.8-27b", "openai/gpt-oss-120b"], maxTokens: 1024, ceilingCents: -1 },
+    heartbeat_triage: { candidates: ["openai/gpt-oss-20b"], maxTokens: 512, ceilingCents: 5 },
+    safety_check: { candidates: ["openai/gpt-oss-20b"], maxTokens: 512, ceilingCents: 10 },
+    summarization: { candidates: ["openai/gpt-oss-20b"], maxTokens: 1024, ceilingCents: 10 },
+    planning: { candidates: ["openai/gpt-oss-20b", "qwen/qwen3.8-27b"], maxTokens: 1024, ceilingCents: -1 },
   },
   low_compute: {
     agent_turn: { candidates: ["openai/gpt-oss-20b", "qwen/qwen3.8-27b", "openai/gpt-oss-120b"], maxTokens: 4096, ceilingCents: 10 },
