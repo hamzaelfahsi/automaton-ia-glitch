@@ -51,7 +51,7 @@ export function createInferenceClient(
   const { apiUrl, apiKey, openaiApiKey, anthropicApiKey, ollamaBaseUrl, getModelProvider } = options;
   const httpClient = new ResilientHttpClient({
     baseTimeout: INFERENCE_TIMEOUT_MS,
-    retryableStatuses: [429, 500, 502, 503, 504],
+    retryableStatuses: [500, 502, 503, 504],
     allowHttpOnLoopback: isLoopbackHttpUrl(ollamaBaseUrl),
   });
   let currentModel = options.defaultModel;

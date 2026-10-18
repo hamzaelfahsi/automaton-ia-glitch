@@ -399,6 +399,16 @@ async function run(): Promise<void> {
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
 
+  // Resurrect any inbox messages that were marked failed during prior rate-limit spikes
+  try {
+    const resurrected = db.raw.prepare(
+      "UPDATE inbox_messages SET status = 'received', retry_count = 0 WHERE status = 'failed'"
+    ).run();
+    if (resurrected.changes > 0) {
+      logger.info(`[${new Date().toISOString()}] Resurrected ${resurrected.changes} previously failed inbox messages.`);
+    }
+  } catch {}
+
   // ─── Main Run Loop ──────────────────────────────────────────
   // The automaton alternates between running and sleeping.
   // The heartbeat can wake it up.

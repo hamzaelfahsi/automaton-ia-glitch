@@ -84,6 +84,11 @@ async function forwardToHelia(userMessage, chatId, fromUser) {
   const id = "tg_" + crypto.randomUUID();
   const creatorAddress = fromUser || "TelegramCreator";
 
+  // Réactiver les messages en échec éventuel suite à un rate limit
+  try {
+    db.prepare("UPDATE inbox_messages SET status = 'received', retry_count = 0 WHERE status = 'failed'").run();
+  } catch {}
+
   // Ingestion dans inbox_messages
   db.prepare(
     `INSERT INTO inbox_messages (id, from_address, content, received_at, status)

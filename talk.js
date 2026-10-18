@@ -44,6 +44,11 @@ if (fs.existsSync(configPath)) {
   } catch {}
 }
 
+// Réactiver les messages en échec éventuel suite à un rate limit
+try {
+  db.prepare("UPDATE inbox_messages SET status = 'received', retry_count = 0 WHERE status = 'failed'").run();
+} catch {}
+
 const id = "msg_" + crypto.randomUUID();
 
 // Enregistrer dans inbox_messages

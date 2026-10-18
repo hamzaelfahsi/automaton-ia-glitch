@@ -948,36 +948,44 @@ export async function runAgentLoop(
       log(config, `[ERROR] Turn failed: ${err.message}`);
 
       // Handle Gemini / Groq / OpenAI rate limits gracefully without counting as fatal consecutive errors
-      if (
+      const isRateLimitError =
         err.message.includes("429") ||
         err.message.includes("413") ||
         err.message.includes("RESOURCE_EXHAUSTED") ||
         err.message.includes("quota") ||
         err.message.includes("rate_limit") ||
         err.message.includes("tokens per minute") ||
-        err.message.includes("TPM")
-      ) {
-        log(config, "[RATE_LIMIT] Provider rate limit reached. Cooling down 45s for quota refresh...");
-        await sleep(45_000);
+        err.message.includes("TPM") ||
+        err.message.includes("tokens per day") ||
+        err.message.includes("TPD") ||
+        err.message.includes("Circuit breaker is open");
+
+      if (isRateLimitError) {
+        log(config, "[RATE_LIMIT] Provider rate limit or circuit cooldown reached. Cooling down 60s for quota refresh...");
+        await sleep(60_000);
         consecutiveErrors = 0;
       } else {
         consecutiveErrors++;
       }
 
       // Handle inbox message state on turn failure:
-      // Messages that have retries remaining go back to 'received';
-      // messages that have exhausted retries move to 'failed'.
+      // Rate limits and circuit cooldowns MUST NOT penalize message retries.
       if (claimedMessages.length > 0) {
-        const exhausted = claimedMessages.filter((m) => m.retryCount >= m.maxRetries);
-        const retryable = claimedMessages.filter((m) => m.retryCount < m.maxRetries);
+        if (isRateLimitError) {
+          resetInboxToReceived(db.raw, claimedMessages.map((m) => m.id));
+          log(config, `[INBOX] ${claimedMessages.length} message(s) preserved in received state during rate-limit cooldown`);
+        } else {
+          const exhausted = claimedMessages.filter((m) => m.retryCount >= m.maxRetries);
+          const retryable = claimedMessages.filter((m) => m.retryCount < m.maxRetries);
 
-        if (exhausted.length > 0) {
-          markInboxFailed(db.raw, exhausted.map((m) => m.id));
-          log(config, `[INBOX] ${exhausted.length} message(s) moved to failed (max retries exceeded)`);
-        }
-        if (retryable.length > 0) {
-          resetInboxToReceived(db.raw, retryable.map((m) => m.id));
-          log(config, `[INBOX] ${retryable.length} message(s) reset to received for retry`);
+          if (exhausted.length > 0) {
+            markInboxFailed(db.raw, exhausted.map((m) => m.id));
+            log(config, `[INBOX] ${exhausted.length} message(s) moved to failed (max retries exceeded)`);
+          }
+          if (retryable.length > 0) {
+            resetInboxToReceived(db.raw, retryable.map((m) => m.id));
+            log(config, `[INBOX] ${retryable.length} message(s) reset to received for retry`);
+          }
         }
       }
 
