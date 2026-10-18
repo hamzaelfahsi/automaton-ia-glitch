@@ -79,8 +79,8 @@ export function createInferenceClient(
     const usesCompletionTokens =
       backend !== "ollama" && /^(o[1-9]|gpt-5|gpt-4\.1)/.test(model);
     // Groq on-demand free tier has an 8000 TPM limit (calculated as prompt_tokens + max_tokens).
-    // Capping max_tokens to 1024 guarantees prompt (5.3k) + max_tokens (1k) fits within 8000 TPM.
-    const tokenLimit = isGroq ? Math.min(opts?.maxTokens || maxTokens, 1024) : (opts?.maxTokens || maxTokens);
+    // Capping max_tokens to 2048 guarantees prompt (~4-5k) + max_tokens fits while allowing full file writes without truncation.
+    const tokenLimit = isGroq ? Math.min(opts?.maxTokens || maxTokens, 2048) : (opts?.maxTokens || maxTokens);
 
     const body: Record<string, unknown> = {
       model,
