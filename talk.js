@@ -68,21 +68,21 @@ try {
 console.log(`\n💬 Message envoyé à Helia : "${message}"`);
 console.log("⏳ Helia se réveille et prépare sa réponse...");
 
-// Attente et suivi de la réponse en direct pendant 45 secondes max
-const startTurnCount = db.prepare("SELECT COUNT(*) as count FROM turns").get().count;
+// Attente et suivi de la réponse en direct pour CE message spécifique
 const startTime = Date.now();
 
 const checkInterval = setInterval(() => {
-  const currentTurnCount = db.prepare("SELECT COUNT(*) as count FROM turns").get().count;
-  if (currentTurnCount > startTurnCount) {
+  const msgRow = db.prepare("SELECT status, processed_at FROM inbox_messages WHERE id = ?").get(id);
+  if (msgRow && msgRow.status === "processed") {
     clearInterval(checkInterval);
-    const lastTurn = db.prepare("SELECT * FROM turns ORDER BY timestamp DESC LIMIT 1").get();
+    const matchingTurn = db.prepare("SELECT * FROM turns WHERE input LIKE ? ORDER BY timestamp DESC LIMIT 1").get(`%${message}%`);
+    const turn = matchingTurn || db.prepare("SELECT * FROM turns ORDER BY timestamp DESC LIMIT 1").get();
     console.log("\n================ REPONSE D'HELIA ================");
-    if (lastTurn.thinking) {
-      console.log(lastTurn.thinking);
+    if (turn.thinking) {
+      console.log(turn.thinking);
     }
     try {
-      const tools = db.prepare("SELECT * FROM tool_calls WHERE turn_id = ?").all(lastTurn.id);
+      const tools = db.prepare("SELECT * FROM tool_calls WHERE turn_id = ?").all(turn.id);
       if (tools && tools.length > 0) {
         console.log("\n🛠️ Actions / Outils exécutés :");
         for (const t of tools) {
@@ -95,7 +95,7 @@ const checkInterval = setInterval(() => {
     process.exit(0);
   }
 
-  if (Date.now() - startTime > 45000) {
+  if (Date.now() - startTime > 60000) {
     clearInterval(checkInterval);
     console.log("\n⌛ Helia traite votre message en arrière-plan. Suivez les logs avec : pm2 logs helia\n");
     process.exit(0);
