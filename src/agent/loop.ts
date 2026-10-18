@@ -386,10 +386,8 @@ export async function runAgentLoop(
   const maxCycleTurns = config.maxTurnsPerCycle ?? 25;
   let cycleTurnCount = 0;
 
-  let pendingInput: { content: string; source: string } | undefined = {
-    content: wakeupInput,
-    source: "wakeup",
-  };
+  let isFirstTurnOfCycle = true;
+  let pendingInput: { content: string; source: string } | undefined;
 
   while (running) {
     // Declared outside try so the catch block can access for retry/failure handling
@@ -409,6 +407,7 @@ export async function runAgentLoop(
 
       // Check for unprocessed inbox messages using the state machine:
       // received → in_progress (claim) → processed (on success) or received/failed (on failure)
+      // Prioritize inbox messages even on first wake turn!
       if (!pendingInput) {
         claimedMessages = claimInboxMessages(db.raw, 10);
         if (claimedMessages.length > 0) {
@@ -423,8 +422,14 @@ export async function runAgentLoop(
             })
             .join("\n\n");
           pendingInput = { content: formatted, source: "agent" };
+        } else if (isFirstTurnOfCycle) {
+          pendingInput = {
+            content: wakeupInput,
+            source: "wakeup",
+          };
         }
       }
+      isFirstTurnOfCycle = false;
 
       // Refresh financial state periodically
       financial = await getFinancialState(conway, identity.address, db, config.chainType || identity.chainType || "evm");
@@ -907,8 +912,15 @@ export async function runAgentLoop(
         break;
       }
 
+      // Check if unread inbox messages arrived before sleeping
+      const hasUnreadInbox = !!db.raw.prepare(
+        "SELECT 1 FROM inbox_messages WHERE status = 'received' LIMIT 1"
+      ).get();
+
       // ── If no tool calls and just text, the agent might be done thinking ──
-      if (
+      if (hasUnreadInbox) {
+        log(config, "[INBOX] Unread messages pending. Continuing loop instead of sleeping.");
+      } else if (
         running &&
         (!response.toolCalls || response.toolCalls.length === 0) &&
         response.finishReason === "stop"

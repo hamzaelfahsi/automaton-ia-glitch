@@ -95,7 +95,7 @@ const checkInterval = setInterval(() => {
     process.exit(0);
   }
 
-  if (Date.now() - startTime > 60000) {
+  if (Date.now() - startTime > 180000) {
     clearInterval(checkInterval);
     console.log("\n⌛ Helia traite votre message en arrière-plan. Suivez les logs avec : pm2 logs helia\n");
     process.exit(0);

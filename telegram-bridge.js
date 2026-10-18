@@ -138,7 +138,7 @@ async function forwardToHelia(userMessage, chatId, fromUser) {
       await sendTyping(chatId);
     }
 
-    if (Date.now() - startTime > 60000) {
+    if (Date.now() - startTime > 180000) {
       clearInterval(pollInterval);
       await sendMessage(chatId, "⌛ *Helia a pris en compte votre message mais son tour prend plus de temps.* Consultez les logs avec `pm2 logs helia`.");
     }

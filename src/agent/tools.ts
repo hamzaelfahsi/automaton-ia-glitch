@@ -29,8 +29,7 @@ const logger = createLogger("tools");
 
 // ─── Path Confinement ─────────────────────────────────────────
 // write_file is restricted to the sandbox home directory tree.
-// The sandbox home is /root for both local and remote execution.
-const SANDBOX_HOME = "/root";
+const SANDBOX_HOME = process.env.HOME || "/root";
 
 /**
  * Validate that a file path resolves to within the allowed root directory.
