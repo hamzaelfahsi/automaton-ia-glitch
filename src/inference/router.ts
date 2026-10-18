@@ -213,7 +213,7 @@ export class InferenceRouter {
           };
         }
 
-        const isRateLimit =
+        const isFallbackError =
           error.message?.includes("429") ||
           error.message?.includes("413") ||
           error.message?.includes("rate_limit") ||
@@ -223,11 +223,13 @@ export class InferenceRouter {
           error.message?.includes("TPM") ||
           error.message?.includes("quota") ||
           error.message?.includes("RESOURCE_EXHAUSTED") ||
-          error.message?.includes("Circuit breaker is open");
+          error.message?.includes("Circuit breaker is open") ||
+          error.message?.includes("tool_use_failed") ||
+          error.message?.includes("Tool call validation failed");
 
-        if (isRateLimit && candidates.length > 1) {
-          // Model hit rate limit or quota. Put on 10 min cooldown and try next candidate!
-          this.markModelCooldown(model.modelId, 600_000);
+        if (isFallbackError && candidates.length > 1) {
+          // Model hit rate limit, quota, or tool syntax glitch. Put on temporary cooldown and try next candidate!
+          this.markModelCooldown(model.modelId, 180_000);
           continue;
         }
 
