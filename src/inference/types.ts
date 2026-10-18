@@ -276,9 +276,9 @@ export const DEFAULT_ROUTING_MATRIX: RoutingMatrix = {
 // === Default Model Strategy Config ===
 
 export const DEFAULT_MODEL_STRATEGY_CONFIG: ModelStrategyConfig = {
-  inferenceModel: "openai/gpt-oss-120b",
+  inferenceModel: "openai/gpt-oss-20b",
   lowComputeModel: "openai/gpt-oss-20b",
-  criticalModel: "openai/gpt-oss-20b",  maxTokensPerTurn: 4096,
+  criticalModel: "openai/gpt-oss-20b",  maxTokensPerTurn: 1024,
   hourlyBudgetCents: 0,
   sessionBudgetCents: 0,
   perCallCeilingCents: 0,
