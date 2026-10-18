@@ -19,6 +19,10 @@ if (!fs.existsSync(dbPath)) {
 }
 
 const db = new Database(dbPath, { readonly: false });
+try {
+  db.pragma("journal_mode = WAL");
+  db.pragma("busy_timeout = 5000");
+} catch {}
 
 function getConfig() {
   if (fs.existsSync(configPath)) {
@@ -439,27 +443,42 @@ const HTML_CONTENT = `<!DOCTYPE html>
       alert('Adresse Solana copiée dans le presse-papiers !');
     }
 
+    async function apiFetch(endpoint, options = {}) {
+      const res = await fetch(endpoint, options);
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (err) {
+        if (!res.ok) {
+          throw new Error('Erreur proxy/serveur (' + res.status + '): ' + text.slice(0, 100));
+        }
+        throw new Error('Format de reponse invalide: ' + text.slice(0, 100));
+      }
+      if (!res.ok) {
+        throw new Error(data.error || ('Erreur serveur (' + res.status + ')'));
+      }
+      return data;
+    }
+
+    let isRefreshing = false;
     async function refreshData(manual = false) {
+      if (isRefreshing && !manual) return;
+      isRefreshing = true;
       if (manual) {
         document.getElementById('refresh-icon').classList.add('animate-spin');
       }
 
       try {
-        const [resStatus, resTurns, resTools, resChat] = await Promise.all([
-          fetch('/api/status').then(r => r.json()),
-          fetch('/api/turns').then(r => r.json()),
-          fetch('/api/tools').then(r => r.json()),
-          fetch('/api/chat-history').then(r => r.json()),
-        ]);
-
-        // Status update
-        updateStatus(resStatus);
-        renderThoughts(resTurns);
-        renderTools(resTools);
-        renderChat(resChat);
+        const bundle = await apiFetch('/api/bundle');
+        updateStatus(bundle.status);
+        renderThoughts(bundle.turns);
+        renderTools(bundle.tools);
+        renderChat(bundle.chat);
       } catch (err) {
-        console.error('Erreur rafraîchissement :', err);
+        console.warn('Erreur rafraîchissement :', err.message);
       } finally {
+        isRefreshing = false;
         if (manual) {
           setTimeout(() => document.getElementById('refresh-icon').classList.remove('animate-spin'), 600);
         }
@@ -594,30 +613,34 @@ const HTML_CONTENT = `<!DOCTYPE html>
       const btn = document.getElementById('send-btn');
       const thinking = document.getElementById('chat-thinking');
 
-      input.value = '';
       btn.disabled = true;
       thinking.classList.remove('hidden');
 
       try {
-        const res = await fetch('/api/chat', {
+        const res = await apiFetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: text }),
-        }).then(r => r.json());
+        });
+
+        // Vidé seulement après acceptation du serveur
+        input.value = '';
 
         // Rafraîchir immédiatement
         refreshData();
 
         // Poller jusqu'à réponse
         const pollTimer = setInterval(async () => {
-          const check = await fetch(\`/api/message-status/\${res.id}\`).then(r => r.json());
-          if (check.status === 'processed' || check.reply) {
-            clearInterval(pollTimer);
-            thinking.classList.add('hidden');
-            btn.disabled = false;
-            refreshData();
-          }
-        }, 1500);
+          try {
+            const check = await apiFetch(\`/api/message-status/\${res.id}\`);
+            if (check.status === 'processed' || check.reply) {
+              clearInterval(pollTimer);
+              thinking.classList.add('hidden');
+              btn.disabled = false;
+              refreshData();
+            }
+          } catch (e) {}
+        }, 2000);
 
         // Timeout au bout de 90 secondes
         setTimeout(() => {
@@ -645,7 +668,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
 
     // Initialisation
     refreshData();
-    setInterval(refreshData, 2500);
+    setInterval(refreshData, 3000);
     setTimeout(() => lucide.createIcons(), 500);
   </script>
 </body>
@@ -663,6 +686,22 @@ const server = http.createServer((req, res) => {
   if (req.method === "OPTIONS") {
     res.writeHead(204);
     res.end();
+    return;
+  }
+
+  // Route API : Bundle tout-en-un (économise la bande passante et stabilise les tunnels)
+  if (pathname === "/api/bundle" && req.method === "GET") {
+    const payload = JSON.stringify({
+      status: getStatusData(),
+      turns: getTurns(20),
+      tools: getToolCalls(30),
+      chat: getChatHistory(30),
+    });
+    res.writeHead(200, {
+      "Content-Type": "application/json",
+      "Content-Length": Buffer.byteLength(payload),
+    });
+    res.end(payload);
     return;
   }
 
@@ -717,16 +756,28 @@ const server = http.createServer((req, res) => {
       try {
         const data = JSON.parse(body || "{}");
         if (!data.message) {
-          res.writeHead(400, { "Content-Type": "application/json" });
-          res.end(JSON.stringify({ error: "Message requis" }));
+          const resp = JSON.stringify({ error: "Message requis" });
+          res.writeHead(400, {
+            "Content-Type": "application/json",
+            "Content-Length": Buffer.byteLength(resp),
+          });
+          res.end(resp);
           return;
         }
         const id = sendMessageToHelia(data.message, data.from || "Web-Dashboard");
-        res.writeHead(200, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ success: true, id }));
+        const resp = JSON.stringify({ success: true, id });
+        res.writeHead(200, {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(resp),
+        });
+        res.end(resp);
       } catch (err) {
-        res.writeHead(500, { "Content-Type": "application/json" });
-        res.end(JSON.stringify({ error: err.message }));
+        const resp = JSON.stringify({ error: err.message });
+        res.writeHead(500, {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(resp),
+        });
+        res.end(resp);
       }
     });
     return;
