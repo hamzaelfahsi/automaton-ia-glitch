@@ -235,7 +235,7 @@ async function chatViaOpenAiCompatible(params: {
       ? `${url}/chat/completions`
       : `${url}/v1/chat/completions`;
 
-  const resp = await params.httpClient.request(endpoint, {
+  let resp = await params.httpClient.request(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -247,6 +247,20 @@ async function chatViaOpenAiCompatible(params: {
     body: JSON.stringify({ ...params.body, model: params.model }),
     timeout: INFERENCE_TIMEOUT_MS,
   });
+
+  if (resp.status === 429 && params.backend === "gemini") {
+    // Free tier rate limit (5 requests per minute) - wait 26s and retry once
+    await new Promise((resolve) => setTimeout(resolve, 26_000));
+    resp = await params.httpClient.request(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${params.apiKey}`,
+      },
+      body: JSON.stringify({ ...params.body, model: params.model }),
+      timeout: INFERENCE_TIMEOUT_MS,
+    });
+  }
 
   if (!resp.ok) {
     const text = await resp.text();

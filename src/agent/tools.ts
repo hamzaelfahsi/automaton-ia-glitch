@@ -195,12 +195,17 @@ export function createBuiltinTools(sandboxId: string): AutomatonTool[] {
         ) {
           return "Blocked: Cannot read sensitive file. This protects credentials and secrets.";
         }
+        const homedir = process.env.HOME || "/home/ubuntu";
+        const targetPath =
+          (filePath === "SOUL.md" || filePath === "./SOUL.md") && !fs.existsSync("SOUL.md")
+            ? path.join(homedir, ".automaton", "SOUL.md")
+            : filePath;
         try {
-          return await ctx.conway.readFile(filePath);
+          return await ctx.conway.readFile(targetPath);
         } catch {
           // Conway files/read API may be broken — fall back to exec(cat)
           const result = await ctx.conway.exec(
-            `cat ${escapeShellArg(filePath)}`,
+            `cat ${escapeShellArg(targetPath)}`,
             30_000,
           );
           if (result.exitCode !== 0) {

@@ -895,10 +895,23 @@ export async function runAgentLoop(
         running = false;
       }
 
+      // Provider rate-limiting pacing (e.g. Google Gemini free tier allows 5-15 requests per minute)
+      const isGeminiKey = Boolean(process.env.GEMINI_API_KEY || config.openaiApiKey?.startsWith("AQ.") || config.openaiApiKey?.startsWith("AIzaSy"));
+      const turnDelayMs = isGeminiKey ? 10_000 : 1_000;
+      await sleep(turnDelayMs);
+
       consecutiveErrors = 0;
     } catch (err: any) {
-      consecutiveErrors++;
       log(config, `[ERROR] Turn failed: ${err.message}`);
+
+      // Handle Gemini / OpenAI rate limits gracefully without counting as fatal consecutive errors
+      if (err.message.includes("429") || err.message.includes("RESOURCE_EXHAUSTED") || err.message.includes("quota")) {
+        log(config, "[RATE_LIMIT] Provider rate limit reached (Gemini Free Tier). Cooling down 26s for quota refresh...");
+        await sleep(26_000);
+        consecutiveErrors = 0;
+      } else {
+        consecutiveErrors++;
+      }
 
       // Handle inbox message state on turn failure:
       // Messages that have retries remaining go back to 'received';
