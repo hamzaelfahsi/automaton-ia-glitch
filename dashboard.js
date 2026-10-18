@@ -67,7 +67,7 @@ function getStatusData() {
     credits,
     usdc,
     solanaAddress: config.creatorAddress || "4J1UCN4Jub9Lzd9djy6q6stPmbq4x9RjWpEYjQmZkNVz",
-    model: config.inferenceModel || "llama-3.3-70b-versatile",
+    model: config.inferenceModel || "openai/gpt-oss-120b",
     totalTurns: turnCount,
     totalTools: toolCount,
     lastActive: lastTurn?.timestamp || new Date().toISOString(),
@@ -247,7 +247,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
     <div class="flex items-center gap-4">
       <div class="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/5 text-xs font-mono text-slate-300">
         <i data-lucide="cpu" class="w-3.5 h-3.5 text-accent-cyan"></i>
-        <span id="model-tag">llama-3.3-70b-versatile</span>
+        <span id="model-tag">openai/gpt-oss-120b</span>
       </div>
       <button onclick="refreshData(true)" class="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 hover:text-white transition">
         <i data-lucide="refresh-cw" id="refresh-icon" class="w-4 h-4"></i>

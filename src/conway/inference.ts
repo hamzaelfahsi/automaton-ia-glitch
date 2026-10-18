@@ -145,7 +145,7 @@ export function createInferenceClient(
       } else if (model.includes("20b")) {
         targetModel = "openai/gpt-oss-20b";
       } else {
-        targetModel = "llama-3.3-70b-versatile";
+        targetModel = "openai/gpt-oss-120b";
       }
     } else if (isGemini) {
       if (!model.startsWith("gemini") || model === "gemini-2.5-flash") {

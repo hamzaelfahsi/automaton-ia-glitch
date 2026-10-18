@@ -216,6 +216,9 @@ export class InferenceRouter {
         const isFallbackError =
           error.message?.includes("429") ||
           error.message?.includes("413") ||
+          error.message?.includes("404") ||
+          error.message?.includes("model_not_found") ||
+          error.message?.includes("does not exist") ||
           error.message?.includes("rate_limit") ||
           error.message?.includes("tokens per day") ||
           error.message?.includes("TPD") ||
