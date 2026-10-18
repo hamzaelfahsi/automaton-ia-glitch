@@ -127,8 +127,12 @@ export function createInferenceClient(
 
     let targetModel = model;
     if (isGroq) {
-      if (!model.startsWith("llama") && !model.startsWith("mixtral") && !model.startsWith("qwen")) {
-        targetModel = "llama-3.3-70b-versatile";
+      if (model.includes("20b") || model.includes("8b") || model === "llama-3.1-8b-instant") {
+        targetModel = "openai/gpt-oss-20b";
+      } else if (model.includes("qwen")) {
+        targetModel = "qwen/qwen3.8-27b";
+      } else {
+        targetModel = "openai/gpt-oss-120b";
       }
     } else if (isGemini) {
       if (!model.startsWith("gemini") || model === "gemini-2.5-flash") {
@@ -318,7 +322,7 @@ async function chatViaOpenAiCompatible(params: {
     model: data.model || params.model,
     message: {
       role: message.role,
-      content: message.content || "",
+      content: message.content || message.reasoning || "",
       tool_calls: toolCalls,
     },
     toolCalls,
