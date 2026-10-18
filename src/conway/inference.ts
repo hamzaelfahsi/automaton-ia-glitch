@@ -122,8 +122,17 @@ export function createInferenceClient(
       backend === "ollama" ? "ollama" :
       apiKey;
 
+    let targetModel = model;
+    if (isGemini) {
+      if (!model.startsWith("gemini") || model === "gemini-2.5-flash") {
+        targetModel = "gemini-3.8-flash";
+      } else if (model === "gemini-2.5-pro") {
+        targetModel = "gemini-3.8-pro";
+      }
+    }
+
     return chatViaOpenAiCompatible({
-      model: isGemini && !model.startsWith("gemini") ? "gemini-2.5-flash" : model,
+      model: targetModel,
       body,
       apiUrl: openAiLikeApiUrl,
       apiKey: openAiLikeApiKey,
