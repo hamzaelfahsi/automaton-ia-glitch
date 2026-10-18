@@ -294,6 +294,9 @@ export function createConwayClient(options: ConwayClientOptions): ConwayClient {
   // ─── Credits ─────────────────────────────────────────────────
 
   const getCreditsBalance = async (): Promise<number> => {
+    if (apiKey.startsWith("cnwy_k_standalone") || apiKey === "none" || !apiKey) {
+      return 10000; // Simulated $100.00 credits for standalone BYOK mode
+    }
     const result = await request("GET", "/v1/credits/balance");
     return result.balance_cents ?? result.credits_cents ?? 0;
   };
