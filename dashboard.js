@@ -104,21 +104,50 @@ function getToolCalls(limit = 30) {
 
 function getChatHistory(limit = 30) {
   const messages = db.prepare("SELECT * FROM inbox_messages ORDER BY received_at DESC LIMIT ?").all(limit);
-  const turns = db.prepare("SELECT * FROM turns ORDER BY timestamp DESC LIMIT ?").all(limit * 2);
+  const turns = db.prepare("SELECT * FROM turns ORDER BY timestamp DESC LIMIT ?").all(limit * 3);
 
   return messages.reverse().map((m) => {
     // Trouver le turn correspondant au message
-    const matchingTurn = turns.find((t) => t.input && t.input.includes(m.content));
+    const matchingTurnIndex = turns.findIndex((t) => t.input && t.input.includes(m.content));
+    let reply = null;
+    if (matchingTurnIndex !== -1) {
+      const turn = turns[matchingTurnIndex];
+      let replyText = turn.thinking;
+
+      // Si le premier turn n'avait que des outils, chercher le turn suivant où elle s'exprime
+      if (!replyText || replyText.trim() === "") {
+        for (let i = matchingTurnIndex - 1; i >= 0 && i >= matchingTurnIndex - 3; i--) {
+          if (turns[i].thinking && turns[i].thinking.trim() !== "") {
+            replyText = turns[i].thinking;
+            break;
+          }
+        }
+      }
+
+      // Si toujours vide, vérifier si des outils ont été exécutés
+      if (!replyText || replyText.trim() === "") {
+        try {
+          const tools = db.prepare("SELECT name FROM tool_calls WHERE turn_id = ?").all(turn.id);
+          if (tools.length > 0) {
+            replyText = "🛠️ J'ai exécuté l'action : " + tools.map((t) => t.name).join(", ");
+          }
+        } catch {}
+      }
+
+      if (replyText && replyText.trim() !== "") {
+        reply = {
+          timestamp: turn.timestamp,
+          thinking: replyText,
+        };
+      }
+    }
     return {
       id: m.id,
       from: m.from_address,
       content: m.content,
       receivedAt: m.received_at,
       status: m.status,
-      reply: matchingTurn ? {
-        timestamp: matchingTurn.timestamp,
-        thinking: matchingTurn.thinking,
-      } : null,
+      reply,
     };
   });
 }
@@ -530,7 +559,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
             <span class="px-1.5 py-0.5 rounded bg-white/10 text-slate-300 uppercase text-[10px]">\${t.state}</span>
           </div>
           \${t.input ? \`<div class="text-slate-400 mb-2 border-l-2 border-accent-cyan/60 pl-2 text-[11px]">👉 \${escapeHtml(t.input.slice(0, 150))}\${t.input.length > 150 ? '...' : ''}</div>\` : ''}
-          <div class="text-slate-200 leading-relaxed whitespace-pre-wrap">\${escapeHtml(t.thinking || 'Aucune pensée enregistrée')}</div>
+          <div class="text-slate-200 leading-relaxed whitespace-pre-wrap">\${escapeHtml(t.thinking || (t.tools && t.tools.length > 0 ? '🛠️ Action exécutée : ' + t.tools.map(tc => tc.name).join(', ') : 'Exécution en tâche de fond'))}</div>
         </div>
       \`).join('');
     }
@@ -582,7 +611,7 @@ const HTML_CONTENT = `<!DOCTYPE html>
           </div>
 
           <!-- Helia reply if exists -->
-          \${m.reply ? \`
+          \${m.reply && m.reply.thinking && m.reply.thinking.trim() !== '' ? \`
             <div class="flex items-start gap-2.5">
               <div class="w-7 h-7 rounded-xl bg-gradient-to-tr from-accent-cyan to-accent-violet flex items-center justify-center text-[10px] font-bold text-white shrink-0 mt-0.5">H</div>
               <div class="bg-white/5 border border-white/10 rounded-2xl rounded-tl-sm p-3 max-w-[85%] text-sm text-slate-200">
