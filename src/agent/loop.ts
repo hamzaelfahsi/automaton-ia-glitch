@@ -899,17 +899,25 @@ export async function runAgentLoop(
       // Provider rate-limiting pacing (e.g. Google Gemini free tier allows 5-15 requests per minute)
       const isGeminiKey = Boolean(process.env.GEMINI_API_KEY || config.openaiApiKey?.startsWith("AQ.") || config.openaiApiKey?.startsWith("AIzaSy"));
       const isGroqKey = Boolean(process.env.GROQ_API_KEY);
-      const turnDelayMs = isGeminiKey ? 10_000 : (isGroqKey ? 2_000 : 1_000);
+      const turnDelayMs = isGeminiKey ? 10_000 : (isGroqKey ? 35_000 : 1_000);
       await sleep(turnDelayMs);
 
       consecutiveErrors = 0;
     } catch (err: any) {
       log(config, `[ERROR] Turn failed: ${err.message}`);
 
-      // Handle Gemini / OpenAI rate limits gracefully without counting as fatal consecutive errors
-      if (err.message.includes("429") || err.message.includes("RESOURCE_EXHAUSTED") || err.message.includes("quota")) {
-        log(config, "[RATE_LIMIT] Provider rate limit reached (Gemini Free Tier). Cooling down 26s for quota refresh...");
-        await sleep(26_000);
+      // Handle Gemini / Groq / OpenAI rate limits gracefully without counting as fatal consecutive errors
+      if (
+        err.message.includes("429") ||
+        err.message.includes("413") ||
+        err.message.includes("RESOURCE_EXHAUSTED") ||
+        err.message.includes("quota") ||
+        err.message.includes("rate_limit") ||
+        err.message.includes("tokens per minute") ||
+        err.message.includes("TPM")
+      ) {
+        log(config, "[RATE_LIMIT] Provider rate limit reached. Cooling down 45s for quota refresh...");
+        await sleep(45_000);
         consecutiveErrors = 0;
       } else {
         consecutiveErrors++;

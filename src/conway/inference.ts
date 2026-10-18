@@ -71,11 +71,16 @@ export function createInferenceClient(
       getModelProvider,
     });
 
+    const isGroq = backend === "groq";
+    const isGemini = backend === "gemini";
+
     // Newer models (o-series, gpt-5.x, gpt-4.1) require max_completion_tokens.
     // Ollama always uses max_tokens.
     const usesCompletionTokens =
       backend !== "ollama" && /^(o[1-9]|gpt-5|gpt-4\.1)/.test(model);
-    const tokenLimit = opts?.maxTokens || maxTokens;
+    // Groq on-demand free tier has an 8000 TPM limit (calculated as prompt_tokens + max_tokens).
+    // Capping max_tokens to 1024 guarantees prompt (5.3k) + max_tokens (1k) fits within 8000 TPM.
+    const tokenLimit = isGroq ? Math.min(opts?.maxTokens || maxTokens, 1024) : (opts?.maxTokens || maxTokens);
 
     const body: Record<string, unknown> = {
       model,
@@ -110,8 +115,6 @@ export function createInferenceClient(
       });
     }
 
-    const isGroq = backend === "groq";
-    const isGemini = backend === "gemini";
     const openAiLikeApiUrl =
       backend === "groq" ? "https://api.groq.com/openai/v1/chat/completions" :
       backend === "gemini" ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions" :
@@ -127,7 +130,9 @@ export function createInferenceClient(
 
     let targetModel = model;
     if (isGroq) {
-      if (model.includes("20b") || model.includes("8b") || model === "llama-3.1-8b-instant") {
+      if (model.includes("120b")) {
+        targetModel = "openai/gpt-oss-120b";
+      } else if (model.includes("20b") || model.includes("8b") || model === "llama-3.1-8b-instant") {
         targetModel = "openai/gpt-oss-20b";
       } else if (model.includes("qwen")) {
         targetModel = "qwen/qwen3.8-27b";
@@ -272,9 +277,9 @@ async function chatViaOpenAiCompatible(params: {
     timeout: INFERENCE_TIMEOUT_MS,
   });
 
-  if (resp.status === 429 && params.backend === "gemini") {
-    // Free tier rate limit (5 requests per minute) - wait 26s and retry once
-    await new Promise((resolve) => setTimeout(resolve, 26_000));
+  if ((resp.status === 429 || resp.status === 413) && (params.backend === "gemini" || params.backend === "groq")) {
+    // Free tier rate limit (tokens per minute or requests per minute) - wait 45s and retry once
+    await new Promise((resolve) => setTimeout(resolve, 45_000));
     resp = await params.httpClient.request(endpoint, {
       method: "POST",
       headers: {
